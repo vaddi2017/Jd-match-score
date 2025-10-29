@@ -128,3 +128,29 @@ button:hover {
   background-size: 800% 800%;
   animation: gradientShift 15s ease infinite;
 }
+/* Smooth animated background */
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.bg-animated {
+  background-size: 400% 400%;
+  animation: gradient 12s ease infinite;
+}
+
+/* Frosted glass effect */
+.glass-box {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+}
