@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
+import * as pdfjsLib from "pdfjs-dist";
+import mammoth from "mammoth";
 import "./App.css";
 
 function App() {
@@ -9,6 +11,49 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // 🧠 File Upload (PDF, DOCX, TXT)
+  const handleFileUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const extension = file.name.split(".").pop().toLowerCase();
+
+    try {
+      // 📄 TXT FILE
+      if (extension === "txt") {
+        const text = await file.text();
+        if (type === "resume") setResume(text);
+        else setJd(text);
+      }
+      // 📘 PDF FILE
+      else if (extension === "pdf") {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let text = "";
+        for (let i = 0; i < pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map((s) => s.str).join(" ") + "\n";
+        }
+        if (type === "resume") setResume(text);
+        else setJd(text);
+      }
+      // 📝 DOCX FILE
+      else if (extension === "docx") {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        if (type === "resume") setResume(result.value);
+        else setJd(result.value);
+      } else {
+        alert("Unsupported file type. Please upload .txt, .pdf, or .docx");
+      }
+    } catch (error) {
+      console.error("❌ Error reading file:", error);
+      alert("Error reading file. Please try again with a valid document.");
+    }
+  };
+
+  // 🧩 Backend API Call
   const handleSubmit = async () => {
     if (!resume || !jd) {
       alert("Please enter both Resume and Job Description");
@@ -21,61 +66,64 @@ function App() {
       formData.append("resume_text", resume);
       formData.append("jd_text", jd);
 
-      const response = await axios.post("http://127.0.0.1:8000/match", formData, {
+      const response = await axios.post("http://localhost:8000/match", formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
+
       setResult(response.data);
     } catch (error) {
-      console.error(error);
-      alert("Error connecting to backend");
+      console.error("⚠️ Backend connection failed:", error);
+      alert("Error connecting to backend. Make sure FastAPI is running at http://localhost:8000");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-grid min-h-screen flex flex-col justify-center items-center text-white px-10 relative overflow-hidden">
-      
-      
+    <div className="min-h-screen bg-gradient-to-b from-cyan-50 to-blue-50 flex flex-col items-center p-6">
 
-      {/* Title */}
+      {/* ✨ Title */}
       <motion.h1
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="text-7xl md:text-8xl font-bold mt-24 mb-16 text-white drop-shadow-[0_0_25px_rgba(255,255,255,0.8)]"
-        style={{ fontFamily: '"Times New Roman", serif' }}
+        className="text-5xl md:text-6xl font-bold mb-12 text-slate-800 text-center"
+        style={{ textShadow: "0 0 15px rgba(100,100,100,0.1)" }}
       >
         Pavan JD Analyzer
       </motion.h1>
 
-      {/* Boxes Row */}
-      <div className="flex flex-col md:flex-row justify-center items-start gap-16 w-full max-w-6xl mb-24">
+      {/* 🧾 Input Boxes */}
+      <div className="flex flex-col md:flex-row justify-center items-start gap-12 w-full max-w-6xl mb-20">
         {/* Resume */}
         <div className="flex flex-col w-full md:w-1/2 space-y-4">
-          <label className="text-3xl font-semibold text-gray-300">
-            <h2>Resume</h2>
-          </label>
+          <h2 className="text-xl font-semibold text-slate-700">Upload or Paste Resume</h2>
+          <input
+            type="file"
+            accept=".pdf,.docx,.txt"
+            onChange={(e) => handleFileUpload(e, "resume")}
+            className="border border-gray-300 rounded-md p-2 text-sm cursor-pointer bg-white hover:bg-gray-50 transition"
+          />
           <textarea
-            placeholder="Paste your Resume text here..."
-            className="h-[500px] p-8 text-2xl rounded-2xl bg-[#111827]/90 border border-gray-700 
-                       text-white placeholder-gray-400 outline-none focus:ring-4 focus:ring-blue-500 
-                       resize-none shadow-xl hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] transition-all duration-300"
+            placeholder="Or paste resume text below"
+            className="h-[400px] p-6 text-md rounded-2xl bg-white border border-gray-300 text-gray-800 placeholder-gray-400 shadow-inner resize-none focus:ring-2 focus:ring-cyan-300"
             value={resume}
             onChange={(e) => setResume(e.target.value)}
           />
         </div>
 
         {/* JD */}
-        <div className="flex flex-col w-full md:w-1/2 space-y-4 mb-40">
-          <label className="text-3xl font-semibold text-gray-300">
-            <h2>Job Description</h2>
-          </label>
+        <div className="flex flex-col w-full md:w-1/2 space-y-4">
+          <h2 className="text-xl font-semibold text-slate-700">Upload or Paste Job Description</h2>
+          <input
+            type="file"
+            accept=".pdf,.docx,.txt"
+            onChange={(e) => handleFileUpload(e, "jd")}
+            className="border border-gray-300 rounded-md p-2 text-sm cursor-pointer bg-white hover:bg-gray-50 transition"
+          />
           <textarea
-            placeholder="Paste the Job Description here..."
-            className="h-[500px] p-8 text-2xl rounded-2xl bg-[#111827]/90 border border-gray-700 
-                       text-white placeholder-gray-400 outline-none focus:ring-4 focus:ring-cyan-400 
-                       resize-none shadow-xl hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all duration-300"
+            placeholder="Or paste job description below"
+            className="h-[400px] p-6 text-md rounded-2xl bg-white border border-gray-300 text-gray-800 placeholder-gray-400 shadow-inner resize-none focus:ring-2 focus:ring-cyan-300"
             value={jd}
             onChange={(e) => setJd(e.target.value)}
           />
@@ -83,17 +131,17 @@ function App() {
       </div>
 
       {/* Analyze Button */}
-      <div className="flex justify-center w-full mt-[80px] mb-24">
+      <div className="flex justify-center w-full mt-10 mb-10">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleSubmit}
           disabled={loading}
-          className={`w-[250px] h-[80px] text-6xl font-extrabold leading-none tracking-wide rounded-full 
+          className={`w-[240px] h-[65px] text-xl font-semibold rounded-full 
                      transition-all duration-300 flex items-center justify-center ${
             loading
-              ? "bg-gray-600 cursor-not-allowed text-white"
-              : "bg-gradient-to-r from-blue-500 via-cyan-400 to-teal-400 text-white hover:text-glow-pulse"
+              ? "bg-gray-400 cursor-not-allowed text-white"
+              : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg hover:shadow-xl"
           }`}
         >
           {loading ? "Analyzing..." : "Analyze Match"}
@@ -106,11 +154,11 @@ function App() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="bg-[#111827]/90 border border-gray-700 rounded-3xl p-10 mt-14 shadow-2xl 
-                     w-full max-w-5xl text-left text-2xl"
+          className="bg-white border border-gray-300 rounded-2xl p-10 mt-10 shadow-lg w-full max-w-5xl text-left text-gray-700"
         >
-          <h2 className="text-4xl font-bold text-cyan-300 mb-5">Match Score</h2>
-          <div className="w-full bg-gray-700 rounded-full h-6 overflow-hidden mb-3">
+          <h2 className="text-3xl font-bold text-cyan-600 mb-4">Match Score</h2>
+
+          <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden mb-3">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${result.match_score}%` }}
@@ -119,28 +167,29 @@ function App() {
                 result.match_score >= 75
                   ? "bg-green-500"
                   : result.match_score >= 50
-                  ? "bg-yellow-500"
-                  : "bg-red-500"
+                  ? "bg-yellow-400"
+                  : "bg-red-400"
               }`}
             ></motion.div>
           </div>
-          <p className="text-lg mt-2 text-gray-300">
-            {result.match_score.toFixed(1)}% overall alignment
+
+          <p className="text-gray-600 mb-4">
+            {result.match_score
+              ? `${result.match_score.toFixed(1)}% overall alignment`
+              : "No match score available"}
           </p>
 
-          <div className="space-y-4 mt-5">
-            <p>
-              <strong className="text-blue-400">✅ Resume Skills:</strong>{" "}
-              <span className="text-gray-300">{result.resume_skills.join(", ")}</span>
-            </p>
-            <p>
-              <strong className="text-yellow-400">⚠️ Missing Skills:</strong>{" "}
-              <span className="text-gray-300">
-                {result.missing_skills.length ? result.missing_skills.join(", ") : "None 🎉"}
-              </span>
-            </p>
-            <p className="text-gray-400 italic mt-3">💡 {result.explanation}</p>
-          </div>
+          <p>
+            <strong className="text-blue-500">✅ Resume Skills:</strong>{" "}
+            {result.resume_skills.length ? result.resume_skills.join(", ") : "No skills detected"}
+          </p>
+          <p className="mt-2">
+            <strong className="text-yellow-500">⚠️ Missing Skills:</strong>{" "}
+            {result.missing_skills.length ? result.missing_skills.join(", ") : "None 🎉"}
+          </p>
+          <p className="italic text-gray-500 mt-4">
+            💡 {result.explanation || "Analysis completed successfully."}
+          </p>
         </motion.div>
       )}
     </div>
